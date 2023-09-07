@@ -66,6 +66,9 @@ def exif_size(img):
             s = (s[1], s[0])
     return s
 
+def print_ram_usage(prefix='', msg=''):
+    mem, gb = psutil.virtual_memory(), 1 << 30  # bytes per gigabyte
+    print(f'{prefix}{msg} {mem.available / gb:.1f}/{mem.total / gb:.1f}GB available')
 
 def exif_transpose(image):
     """
@@ -573,6 +576,7 @@ class LoadImagesAndLabels(Dataset):
         self.ims = [None] * n
         self.npy_files = [Path(f).with_suffix('.npy') for f in self.im_files]
         if cache_images:
+            print_ram_usage(prefix=prefix, msg='pre-cache:')
             b, gb = 0, 1 << 30  # bytes of cached images, bytes per gigabytes
             self.im_hw0, self.im_hw = [None] * n, [None] * n
             fcn = self.cache_images_to_disk if cache_images == 'disk' else self.load_image
@@ -586,6 +590,7 @@ class LoadImagesAndLabels(Dataset):
                     b += self.ims[i].nbytes
                 pbar.desc = f'{prefix}Caching images ({b / gb:.1f}GB {cache_images})'
             pbar.close()
+            print_ram_usage(prefix=prefix, msg='post-cache:')
 
     def check_cache_ram(self, safety_margin=0.1, prefix=''):
         # Check image caching requirements vs available memory
