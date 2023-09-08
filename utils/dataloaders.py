@@ -123,10 +123,13 @@ class SmartDistributedSampler(distributed.DistributedSampler):
             idx = idx[:self.num_samples]
         else:
             padding_size = self.num_samples - len(idx)
-            if padding_size <= len(idx):
-                idx += idx[:padding_size]
-            else:
-                idx += (idx * math.ceil(padding_size / len(idx)))[:padding_size]
+            if self.shuffle:
+                if padding_size <= len(idx):
+                    idx += idx[:padding_size]
+                else:
+                    idx += (idx * math.ceil(padding_size / len(idx)))[:padding_size]
+            else: # just repeat the last element (for ddp validation)
+                idx += [idx[-1]] * padding_size
 
         if self.dataset.rect:
             print(f'SDS: RANK:{self.rank}--idx:{idx}    ')
@@ -716,6 +719,7 @@ class LoadImagesAndLabels(Dataset):
     #     return self
 
     def __getitem__(self, index):
+        # if using DDP with SmartDistributedSampler, index is [0,1,2,3,...(0)], indices are [1,5,9,...]
         index = self.indices[index]  # linear, shuffled, or image_weights
 
         hyp = self.hyp
