@@ -45,7 +45,9 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
+import val_ddp as validate_ddp  # for end-of-epoch mAP
 import val as validate  # for end-of-epoch mAP
+
 from models.experimental import attempt_load
 from models.yolo import Model
 from utils.autoanchor import check_anchors
@@ -169,7 +171,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
-    ema = ModelEMA(model) if RANK in {-1, 0} else None
+    ema = ModelEMA(model) # if RANK in {-1, 0} else None
 
     # Resume
     best_fitness, start_epoch = 0.0, 0
@@ -212,11 +214,28 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     mlc = int(labels[:, 0].max())  # max label class
     assert mlc < nc, f'Label class {mlc} exceeds nc={nc} in {data}. Possible class labels are 0-{nc - 1}'
 
+    # Validation Loader
+    val_batch_size = batch_size // WORLD_SIZE * 2
+
+    # MultiGPU val_loader
+    val_loader_ddp = create_dataloader(val_path,
+                                       imgsz,
+                                       val_batch_size,
+                                       gs,
+                                       single_cls,
+                                       hyp=hyp,
+                                       cache=None if noval else opt.cache,
+                                       rect=True,
+                                       rank=LOCAL_RANK,
+                                       workers=workers,
+                                       pad=0.5,
+                                       prefix=colorstr('val: '))[0]
+
     # Process 0
     if RANK in {-1, 0}:
         val_loader = create_dataloader(val_path,
                                        imgsz,
-                                       batch_size // WORLD_SIZE * 2,
+                                       val_batch_size,
                                        gs,
                                        single_cls,
                                        hyp=hyp,
@@ -357,7 +376,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
             if not noval or final_epoch:  # Calculate mAP
                 results, maps, _ = validate.run(data_dict,
-                                                batch_size=batch_size // WORLD_SIZE * 2,
+                                                batch_size=val_batch_size,
                                                 imgsz=imgsz,
                                                 half=amp,
                                                 model=ema.ema,
@@ -400,6 +419,21 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     torch.save(ckpt, w / f'epoch{epoch}.pt')
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
+        
+        # DDP Stuff
+        _results, _maps, _ = validate_ddp.run(data_dict,
+                                              batch_size=val_batch_size,
+                                              imgsz=imgsz,
+                                              half=amp,# False?
+                                              # model=de_parallel(model), #ema.ema,
+                                              model=ema.ema if ema else de_parallel(model),
+                                              single_cls=single_cls,
+                                              dataloader=val_loader_ddp,
+                                              save_dir=save_dir,
+                                              plots=False,
+                                              callbacks=callbacks,
+                                              compute_loss=compute_loss,# False?
+                                              )
 
         # EarlyStopping
         if RANK != -1:  # if DDP training
