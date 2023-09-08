@@ -131,8 +131,7 @@ class SmartDistributedSampler(distributed.DistributedSampler):
             else: # just repeat the last element (for ddp validation)
                 idx += [idx[-1]] * padding_size
 
-        if self.dataset.rect:
-            print(f'SDS: RANK:{self.rank}--idx:{idx}    ')
+        # if self.dataset.rect: print(f'SDS: RANK:{self.rank}--idx:{idx}    ')
 
         return iter(idx)
 
@@ -568,27 +567,19 @@ class LoadImagesAndLabels(Dataset):
         self.n = n
         self.indices = np.arange(n)
         if rank > -1:  # DDP indices (see: SmartDistributedSampler)
-            ### self.indices = self.indices[np.random.RandomState(seed=seed).permutation(n) % WORLD_SIZE == RANK]
+            ### OLD ## self.indices = self.indices[np.random.RandomState(seed=seed).permutation(n) % WORLD_SIZE == RANK]
             # randomize the partitioning of images across GPU processes (for mosaic)
             indices = self.indices if self.rect else np.random.RandomState(seed=seed).permutation(n)
             # force each rank (i.e. GPU process) to sample the same subset of data on every epoch
             self.indices = self.indices[indices % WORLD_SIZE == RANK]
 
-            ### DEBUG...
+            bi = np.floor(np.arange(n) / (batch_size * WORLD_SIZE)).astype(int)  # batch index
+            nb = bi[-1] + 1  # number of batches
+            self.batch = bi  # batch index of image
             # if self.rect:
             #     print(f'RANK:{RANK}--nb={nb},n={n}    ')
             #     print(f'RANK:{RANK}--self.indices:{self.indices}    ')
             #     print(f'RANK:{RANK}--self.batch:{self.batch}    ')
-
-            bi = np.floor(np.arange(n) / (batch_size * WORLD_SIZE)).astype(int)  # batch index
-            nb = bi[-1] + 1  # number of batches
-            self.batch = bi  # batch index of image
-
-            if self.rect:
-                print(f'RANK:{RANK}--nb={nb},n={n}    ')
-                print(f'RANK:{RANK}--self.indices:{self.indices}    ')
-                print(f'RANK:{RANK}--self.batch:{self.batch}    ')
-
 
         # Update labels
         include_class = []  # filter labels to include only these classes (optional)
@@ -635,7 +626,7 @@ class LoadImagesAndLabels(Dataset):
             self.batch_shapes = np.ceil(np.array(shapes) * img_size / stride + pad).astype(int) * stride
 
             # if rank > -1:
-            print(f'RANK:{RANK}--self.batch_shapes:\n{self.batch_shapes}    ')
+            # print(f'RANK:{RANK}--self.batch_shapes:\n{self.batch_shapes}    ')
 
         # Cache images into RAM/disk for faster training
         if cache_images == 'ram' and not self.check_cache_ram(prefix=prefix):
