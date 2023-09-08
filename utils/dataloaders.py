@@ -128,6 +128,9 @@ class SmartDistributedSampler(distributed.DistributedSampler):
             else:
                 idx += (idx * math.ceil(padding_size / len(idx)))[:padding_size]
 
+        if self.dataset.rect:
+            print(f'SDS: RANK:{self.rank}--idx:{idx}    ')
+
         return iter(idx)
 
 def create_dataloader(path,
