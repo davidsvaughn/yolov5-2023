@@ -568,6 +568,13 @@ class LoadImagesAndLabels(Dataset):
             # force each rank (i.e. GPU process) to sample the same subset of data on every epoch
             self.indices = self.indices[indices % WORLD_SIZE == RANK]
 
+            ### DEBUG...
+            if self.rect:
+                print(f'RANK:{RANK}--nb={nb},n={n}    ')
+                print(f'RANK:{RANK}--self.indices:{self.indices}    ')
+                print(f'RANK:{RANK}--self.batch:{self.batch}    ')
+
+
         # Update labels
         include_class = []  # filter labels to include only these classes (optional)
         self.segments = list(self.segments)
