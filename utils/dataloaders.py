@@ -575,20 +575,19 @@ class LoadImagesAndLabels(Dataset):
             self.indices = self.indices[indices % WORLD_SIZE == RANK]
 
             ### DEBUG...
-            if self.rect:
-                print(f'RANK:{RANK}--nb={nb},n={n}    ')
-                print(f'RANK:{RANK}--self.indices:{self.indices}    ')
-                print(f'RANK:{RANK}--self.batch:{self.batch}    ')
-
-            ### try (2)
-            # bi = np.floor(np.arange(n) / (batch_size * WORLD_SIZE)).astype(int)  # batch index
-            # nb = bi[-1] + 1  # number of batches
-            # self.batch = bi  # batch index of image
-
             # if self.rect:
             #     print(f'RANK:{RANK}--nb={nb},n={n}    ')
             #     print(f'RANK:{RANK}--self.indices:{self.indices}    ')
             #     print(f'RANK:{RANK}--self.batch:{self.batch}    ')
+
+            bi = np.floor(np.arange(n) / (batch_size * WORLD_SIZE)).astype(int)  # batch index
+            nb = bi[-1] + 1  # number of batches
+            self.batch = bi  # batch index of image
+
+            if self.rect:
+                print(f'RANK:{RANK}--nb={nb},n={n}    ')
+                print(f'RANK:{RANK}--self.indices:{self.indices}    ')
+                print(f'RANK:{RANK}--self.batch:{self.batch}    ')
 
 
         # Update labels
