@@ -619,7 +619,13 @@ class LoadImagesAndLabels(Dataset):
             # Set training image shapes
             shapes = [[1, 1]] * nb
             for i in range(nb):
-                ari = ar[bi == i]
+                ## OLD ####################
+                # ari = ar[bi == i]
+                ## NEW ## get subset that are in this RANK
+                x = np.zeros(n).astype('bool')
+                x[self.indices] = True
+                ari = ar[(bi==i)*x]
+                ###########################
                 mini, maxi = ari.min(), ari.max()
                 if maxi < 1:
                     shapes[i] = [maxi, 1]
