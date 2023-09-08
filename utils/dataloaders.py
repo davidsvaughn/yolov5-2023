@@ -623,8 +623,8 @@ class LoadImagesAndLabels(Dataset):
 
             self.batch_shapes = np.ceil(np.array(shapes) * img_size / stride + pad).astype(int) * stride
 
-            if rank > -1:
-                print(f'RANK:{RANK}--self.batch_shapes:{self.batch_shapes}    ')
+            # if rank > -1:
+            print(f'RANK:{RANK}--self.batch_shapes:\n{self.batch_shapes}    ')
 
         # Cache images into RAM/disk for faster training
         if cache_images == 'ram' and not self.check_cache_ram(prefix=prefix):
