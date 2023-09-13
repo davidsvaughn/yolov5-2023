@@ -311,10 +311,10 @@ def run(
             print(f'\nALL_HPATHS:{all_hpaths}\n\n')
             # hpaths = torch.cat(all_hpaths, 0)[0]
             all_hpaths = [torch.squeeze(x, 0) for x in all_hpaths]
-            hpaths = list(itertools.chain.from_iterable(all_hpaths))
+            hpaths = np.array(list(map(torch.Tensor.cpu, list(itertools.chain.from_iterable(all_hpaths)))))
             print(f'\nHPATHS:{hpaths}\n\n')
 
-            didx = dupidx(hpaths.cpu().numpy())
+            didx = dupidx(hpaths)
             print(f'\nDIDX:{didx}\n\n')
 
         # continue
