@@ -327,6 +327,7 @@ def run(
             # if batch_i==3: print(f'\nDIDX:{didx}\n\n')
             if len(didx>0):
                 didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
+                print(f'\nDIDX:{didx}\n')
 
         # continue
         ###############################################################
