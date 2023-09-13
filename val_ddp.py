@@ -122,6 +122,7 @@ def gather_tensors(t, device):
 def gather_tensor_list(tl, device):
     return [gather_tensors(t, device) for t in tl]
 
+CACHE_DATA = True
 SHAPES = {}
 TARGETS = {}
 DIDX = {}
@@ -159,7 +160,8 @@ def run(
         epoch=-1,
     ):
     # compute these on first epoch only
-    global SHAPES, TARGETS, DIDX
+    if CACHE_DATA:
+        global SHAPES, TARGETS, DIDX
 
     # Initialize/load model and set device
     training = model is not None
@@ -237,28 +239,27 @@ def run(
     pbar = tqdm(dataloader, desc=s, bar_format=TQDM_BAR_FORMAT, disable=RANK > 0)  # progress bar
 
     # hash paths into integers [use: https://pypi.org/project/cityhash/ ??? ]
-    def hash(s):
-        return int(hashlib.sha256(s.encode('utf-8')).hexdigest(), 16) % 10**16
+    def hash(s): return int(hashlib.sha256(s.encode('utf-8')).hexdigest(), 16) % 10**16
+
     # return indices of all duplicate values
-    def dupidx(x):
-        return np.where(pd.DataFrame(x).duplicated(keep=False))[0]
+    def dupidx(x): return np.where(pd.DataFrame(x).duplicated(keep=False))[0]
 
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
 
         # code to ignore duplicate data sometimes caused by DDP Validation
-        if epoch<1:
+        if epoch<1 or not CACHE_DATA:
             paths = np.array(paths)
             dupids = dupidx(paths)
             if len(dupids)>0:
-                print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}')
+                # print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}')
                 assert len(np.unique(paths[dupids]))==1, f"more than 1 unique repeated path, got: {paths[dupids]}"
                 dupids = dupids[1:] ## remove first index, for keeping 1 instance of repeated data
             dupids = torch.unsqueeze(torch.tensor(dupids, device=device), 1)
-        ## old de-dupe...
-        # hpaths = torch.tensor([hash(p) for p in paths], device=device)
-        # hpaths = torch.unsqueeze(hpaths, 0)
-        # # print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
-        # # print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
+            ## old de-dupe...
+            # hpaths = torch.tensor([hash(p) for p in paths], device=device)
+            # hpaths = torch.unsqueeze(hpaths, 0)
+            # # print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
+            # # print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -296,7 +297,7 @@ def run(
         # if RANK in {-1, 0}: print('\nGATHER: preds...')
         all_preds = gather_tensor_list(preds, device)
 
-        if epoch<1:
+        if epoch<1 or not CACHE_DATA:
             # print(f'RANK:{RANK}-batch{batch_i}:\n{targets}\n\n')
             # if RANK in {-1, 0}: print('\nGATHER: targets...')
             all_targets = gather_tensors(targets, device)
@@ -316,7 +317,7 @@ def run(
             preds = list(itertools.chain.from_iterable(all_preds))
             # print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
 
-            if epoch<1:
+            if epoch<1 or not CACHE_DATA:
                 # print(f'\nALL TARGETS (before):{all_targets}\n\n')
                 for j,targets in enumerate(all_targets):
                     targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
@@ -337,7 +338,7 @@ def run(
                 for j,dupids in enumerate(all_dupids):
                     all_dupids[j] = dupids * WORLD_SIZE + j ## restore global indices
                 didx = torch.squeeze(torch.cat(all_dupids, 0), 1).cpu().numpy().astype('int')
-                if len(didx)>0: print(f'\nbatch:{batch_i}-didx:{didx}')
+                # if len(didx)>0: print(f'\nbatch:{batch_i}-didx:{didx}')
 
                 # # old de-dupe....
                 # all_hpaths = torch.cat([x.T for x in all_hpaths], 1).flatten()
@@ -351,14 +352,15 @@ def run(
 
         if RANK in {-1, 0}:
 
-            if epoch<1:
-                SHAPES[batch_i] = shapes
-                TARGETS[batch_i] = targets
-                DIDX[batch_i] = didx
-            else:
-                shapes = SHAPES[batch_i]
-                targets = TARGETS[batch_i]
-                didx = DIDX[batch_i]
+            if CACHE_DATA:
+                if epoch<1:
+                    SHAPES[batch_i] = shapes
+                    TARGETS[batch_i] = targets
+                    DIDX[batch_i] = didx
+                else:
+                    shapes = SHAPES[batch_i]
+                    targets = TARGETS[batch_i]
+                    didx = DIDX[batch_i]
 
             # Metrics
             for si, pred in enumerate(preds):
