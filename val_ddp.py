@@ -237,10 +237,10 @@ def run(
 
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
 
-        if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
+        # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
         hpaths = torch.tensor([hash(p) for p in paths], device=device)
         hpaths = torch.unsqueeze(hpaths, 0)
-        if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
+        # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -298,7 +298,7 @@ def run(
                 targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
             # if batch_i==3: print(f'\nALL TARGETS (after):{all_targets}\n\n')
             targets = torch.cat(all_targets, 0)
-            if batch_i==3: print(f'\nTARGETS (after):{targets}\n\n')
+            # if batch_i==3: print(f'\nTARGETS (after):{targets}\n\n')
 
             all_shapes = list(itertools.chain.from_iterable(all_shapes))
             # print(f'\nALL_SHAPES:{all_shapes}\n')
@@ -321,10 +321,12 @@ def run(
             # all_hpaths = list(itertools.chain.from_iterable(all_hpaths))
             # print(f'\nALL_HPATHS 3:{all_hpaths}\n\n')
             hpaths = np.array(list(map(torch.Tensor.cpu, all_hpaths)))
-            if batch_i==3: print(f'\nHPATHS:{hpaths}\n\n')
+            # if batch_i==3: print(f'\nHPATHS:{hpaths}\n\n')
 
             didx = dupidx(hpaths)
-            if batch_i==3: print(f'\nDIDX:{didx}\n\n')
+            # if batch_i==3: print(f'\nDIDX:{didx}\n\n')
+            if len(didx>0):
+                didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
 
         # continue
         ###############################################################
@@ -333,12 +335,11 @@ def run(
             # Metrics
             for si, pred in enumerate(preds):
 
+                # skip duplicate data
                 if si in didx:
-                    print(f'\nPREDS-{si}:{pred}\n\n')
-                    print(f'\nTARGETS-{si}:{targets[targets[:, 0] == si, :]}\n\n')
-
-                    if si==len(preds)-1 and len(pred)>0:
-                        sys.exit()
+                    continue
+                    # print(f'\nPREDS-{si}:{pred}\n\n')
+                    # print(f'\nTARGETS-{si}:{targets[targets[:, 0] == si, :]}\n\n')
 
                 labels = targets[targets[:, 0] == si, 1:]
                 nl, npr = labels.shape[0], pred.shape[0]  # number of labels, predictions
