@@ -247,6 +247,7 @@ def run(
         assert len(np.unique(paths[dupids]))<=1, f"more than 1 unique repeated path, got: {paths[dupids]}"
         if len(dupids)>0:
             print(f'RANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
+        dupids = torch.unsqueeze(torch.tensor(dupids, device=device), 1)
         
 
         callbacks.run('on_val_batch_start')
@@ -290,6 +291,8 @@ def run(
 
         all_hpaths = gather_tensors(hpaths, device)
 
+        all_dupids = gather_tensors(dupids, device)
+
         ## shapes
         all_shapes = []
         for s in shapes:
@@ -322,6 +325,12 @@ def run(
             # if batch_i==3: print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
             all_hpaths = torch.cat([x.T for x in all_hpaths], 1).flatten()
             # if batch_i==3: print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
+
+            for j,dupids in enumerate(all_dupids):
+                all_dupids[j] = dupids * WORLD_SIZE + j ## restore global indices
+            dupids = torch.squeeze(torch.cat(all_dupids, 0))
+            if len(dupids)>0:
+                print(f'batch:{batch_i}-DUPIDS:{dupids}\n')
             
 
             # hpaths = torch.cat(all_hpaths, 0)[0]
@@ -335,7 +344,7 @@ def run(
             didx = dupidx(hpaths)
             # if batch_i==3: print(f'\nDIDX:{didx}\n\n')
             if len(didx>0):
-                print(f'\nDIDX(all):{didx}\n')
+                print(f'\nDIDX(all):{didx}')
                 didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
                 print(f'\nDIDX:{didx}\n')
 
