@@ -240,6 +240,7 @@ def run(
         print(f'RANK:{RANK}-batch{batch_i}:\n{paths}    ')
         hpaths = torch.tensor([hash(p) for p in paths], device=device)
         hpaths = torch.unsqueeze(hpaths, 0)
+        print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}    ')
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -308,6 +309,7 @@ def run(
             # print(f'\nSHAPES:{shapes}\n\n')
 
             # hpaths = list(itertools.chain.from_iterable(all_hpaths))
+            print(f'\nALL_HPATHS:{all_hpaths}\n\n')
             hpaths = torch.cat(all_hpaths, 0)[0]
             print(f'\nHPATHS:{hpaths}\n\n')
             didx = dupidx(hpaths.cpu().numpy())
