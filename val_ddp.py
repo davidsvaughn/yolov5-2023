@@ -220,7 +220,7 @@ def run(
         if isinstance(names, (list, tuple)):  # old format
             names = dict(enumerate(names))
         class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
-        tp, fp, p, r, f1, mp, mr, map50, ap50, map = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        tp, fp, p, r, f1, mp, mr, map50, ap50, mAP = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         dt = Profile(), Profile(), Profile()  # profiling times
         # loss = torch.zeros(3, device=device)
         jdict, stats, ap, ap_class = [], [], [], []
@@ -308,13 +308,12 @@ def run(
                 shapes.append(s)
             # print(f'\nSHAPES:{shapes}\n\n')
 
-            print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
+            # print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
             # hpaths = torch.cat(all_hpaths, 0)[0]
             all_hpaths = [torch.squeeze(x, 0) for x in all_hpaths]
-            print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
+            # print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
             all_hpaths = list(itertools.chain.from_iterable(all_hpaths))
-            print(f'\nALL_HPATHS 3:{all_hpaths}\n\n')
-
+            # print(f'\nALL_HPATHS 3:{all_hpaths}\n\n')
             hpaths = np.array(list(map(torch.Tensor.cpu, all_hpaths)))
             print(f'\nHPATHS:{hpaths}\n\n')
 
@@ -381,12 +380,12 @@ def run(
         if len(stats) and stats[0].any():
             tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
             ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
-            mp, mr, map50, map = p.mean(), r.mean(), ap50.mean(), ap.mean()
+            mp, mr, map50, mAP = p.mean(), r.mean(), ap50.mean(), ap.mean()
         nt = np.bincount(stats[3].astype(int), minlength=nc)  # number of targets per class
 
         # Print results
         pf = '%22s' + '%11i' * 2 + '%11.3g' * 4  # print format
-        LOGGER.info(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+        LOGGER.info(pf % ('all', seen, nt.sum(), mp, mr, map50, mAP))
         if nt.sum() == 0:
             LOGGER.warning(f'WARNING ⚠️ no labels found in {task} set, can not compute metrics without labels')
 
@@ -430,7 +429,7 @@ def run(
                 eval.evaluate()
                 eval.accumulate()
                 eval.summarize()
-                map, map50 = eval.stats[:2]  # update results (mAP@0.5:0.95, mAP@0.5)
+                mAP, map50 = eval.stats[:2]  # update results (mAP@0.5:0.95, mAP@0.5)
             except Exception as e:
                 LOGGER.info(f'pycocotools unable to run: {e}')
 
@@ -439,10 +438,10 @@ def run(
         if not training:
             s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
             LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
-        maps = np.zeros(nc) + map
+        maps = np.zeros(nc) + mAP
         for i, c in enumerate(ap_class):
             maps[c] = ap[i]
-        return (mp, mr, map50, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
+        return (mp, mr, map50, mAP, *(loss.cpu() / len(dataloader)).tolist()), maps, t
     else:
         return None,None,None
 
