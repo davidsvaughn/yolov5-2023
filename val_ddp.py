@@ -242,6 +242,13 @@ def run(
         hpaths = torch.unsqueeze(hpaths, 0)
         # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
 
+        paths = np.array(paths)
+        dupids = dupidx(paths)
+        assert len(np.unique(paths[dupids]))<=1, f"more than 1 unique repeated path, got: {paths[dupids]}"
+        if len(dupids)>0:
+            print(f'RANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
+        
+
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
             if cuda:
@@ -328,6 +335,7 @@ def run(
             didx = dupidx(hpaths)
             # if batch_i==3: print(f'\nDIDX:{didx}\n\n')
             if len(didx>0):
+                print(f'\nDIDX(all):{didx}\n')
                 didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
                 print(f'\nDIDX:{didx}\n')
 
