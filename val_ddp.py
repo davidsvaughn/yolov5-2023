@@ -237,18 +237,19 @@ def run(
 
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
 
-        # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
-        hpaths = torch.tensor([hash(p) for p in paths], device=device)
-        hpaths = torch.unsqueeze(hpaths, 0)
-        # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
-
+        # code to ignore duplicate data sometimes caused by DDP Validation
         paths = np.array(paths)
         dupids = dupidx(paths)
         if len(dupids)>0:
-            # print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
+            print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
             assert len(np.unique(paths[dupids]))==1, f"more than 1 unique repeated path, got: {paths[dupids]}"
             dupids = dupids[1:] ## remove first index, for keeping 1 instance of repeated data
         dupids = torch.unsqueeze(torch.tensor(dupids, device=device), 1)
+        ## old de-dupe...
+        # hpaths = torch.tensor([hash(p) for p in paths], device=device)
+        # hpaths = torch.unsqueeze(hpaths, 0)
+        # # print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
+        # # print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -285,13 +286,12 @@ def run(
         # if RANK in {-1, 0}: print('\nGATHER: preds...')
         all_preds = gather_tensor_list(preds, device)
 
-        # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{targets}\n\n')
+        # print(f'RANK:{RANK}-batch{batch_i}:\n{targets}\n\n')
         # if RANK in {-1, 0}: print('\nGATHER: targets...')
         all_targets = gather_tensors(targets, device)
 
-        all_hpaths = gather_tensors(hpaths, device)
-
         all_dupids = gather_tensors(dupids, device)
+        # all_hpaths = gather_tensors(hpaths, device)
 
         ## shapes
         all_shapes = []
@@ -303,14 +303,14 @@ def run(
 
         if RANK in {-1, 0}:
             preds = list(itertools.chain.from_iterable(all_preds))
-            # if batch_i==3: print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
+            # print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
 
-            # if batch_i==3: print(f'\nALL TARGETS (before):{all_targets}\n\n')
+            # print(f'\nALL TARGETS (before):{all_targets}\n\n')
             for j,targets in enumerate(all_targets):
                 targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
-            # if batch_i==3: print(f'\nALL TARGETS (after):{all_targets}\n\n')
             targets = torch.cat(all_targets, 0)
-            # if batch_i==3: print(f'\nTARGETS (after):{targets}\n\n')
+            # print(f'\nALL TARGETS (after):{all_targets}\n\n')
+            # print(f'\nTARGETS (after):{targets}\n\n')
 
             all_shapes = list(itertools.chain.from_iterable(all_shapes))
             # print(f'\nALL_SHAPES:{all_shapes}\n')
@@ -322,31 +322,18 @@ def run(
                 shapes.append(s)
             # print(f'\nSHAPES:{shapes}\n\n')
 
-            # if batch_i==3: print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
-            all_hpaths = torch.cat([x.T for x in all_hpaths], 1).flatten()
-            # if batch_i==3: print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
-
             for j,dupids in enumerate(all_dupids):
                 all_dupids[j] = dupids * WORLD_SIZE + j ## restore global indices
-            dupids = torch.squeeze(torch.cat(all_dupids, 0), 1).cpu().numpy().astype('int')
-            if len(dupids)>0:
-                print(f'batch:{batch_i}-DUPIDS:{dupids}')
-            
+            didx = torch.squeeze(torch.cat(all_dupids, 0), 1).cpu().numpy().astype('int')
+            if len(didx)>0: print(f'\nbatch:{batch_i}-dupids:{didx}')
 
-            # hpaths = torch.cat(all_hpaths, 0)[0]
-            # all_hpaths = [torch.squeeze(x, 0) for x in all_hpaths]
-            # print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
-            # all_hpaths = list(itertools.chain.from_iterable(all_hpaths))
-            # print(f'\nALL_HPATHS 3:{all_hpaths}\n\n')
-            hpaths = np.array(list(map(torch.Tensor.cpu, all_hpaths)))
-            # if batch_i==3: print(f'\nHPATHS:{hpaths}\n\n')
-
-            didx = dupidx(hpaths)
-            # if batch_i==3: print(f'\nDIDX:{didx}\n\n')
-            if len(didx>0):
-                print(f'\nDIDX(all):{didx}')
-                didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
-                print(f'\nDIDX:{didx}\n')
+            # # old de-dupe....
+            # all_hpaths = torch.cat([x.T for x in all_hpaths], 1).flatten()
+            # hpaths = np.array(list(map(torch.Tensor.cpu, all_hpaths)))
+            # didx = dupidx(hpaths)
+            # if len(didx>0):
+            #     didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
+            #     # print(f'\nDIDX:{didx}\n')
 
         ###############################################################
 
