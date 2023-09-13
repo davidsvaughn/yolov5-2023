@@ -241,7 +241,7 @@ def run(
         paths = np.array(paths)
         dupids = dupidx(paths)
         if len(dupids)>0:
-            print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
+            print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}')
             assert len(np.unique(paths[dupids]))==1, f"more than 1 unique repeated path, got: {paths[dupids]}"
             dupids = dupids[1:] ## remove first index, for keeping 1 instance of repeated data
         dupids = torch.unsqueeze(torch.tensor(dupids, device=device), 1)
