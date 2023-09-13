@@ -394,20 +394,23 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 
         # DDP Validation (Multi-GPU)
         results, maps, _ = validate_ddp.run(data_dict,
-                                              batch_size=val_batch_size,
-                                              imgsz=imgsz,
-                                              half=amp,# False?
-                                              # model=de_parallel(model), #ema.ema,
-                                              model=ema.ema if ema else de_parallel(model),
-                                              single_cls=single_cls,
-                                              dataloader=val_loader_ddp,
-                                              save_dir=save_dir,
-                                              plots=False,
-                                              callbacks=callbacks,
-                                              compute_loss=compute_loss,# False?
-                                              )
+                                            batch_size=val_batch_size,
+                                            imgsz=imgsz,
+                                            half=amp,# False?
+                                            # model=de_parallel(model), #ema.ema,
+                                            model=ema.ema if ema else de_parallel(model),
+                                            single_cls=single_cls,
+                                            dataloader=val_loader_ddp,
+                                            save_dir=save_dir,
+                                            plots=False,
+                                            callbacks=callbacks,
+                                            compute_loss=compute_loss,# False?
+                                            epoch=epoch,
+                                            )
         
         if RANK in {-1, 0}:
+            print_ram_usage()
+            
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
             stop = stopper(epoch=epoch, fitness=fi)  # early stop check
