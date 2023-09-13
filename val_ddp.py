@@ -325,7 +325,7 @@ def run(
             for j,dupids in enumerate(all_dupids):
                 all_dupids[j] = dupids * WORLD_SIZE + j ## restore global indices
             didx = torch.squeeze(torch.cat(all_dupids, 0), 1).cpu().numpy().astype('int')
-            if len(didx)>0: print(f'\nbatch:{batch_i}-dupids:{didx}')
+            if len(didx)>0: print(f'\nbatch:{batch_i}-didx:{didx}')
 
             # # old de-dupe....
             # all_hpaths = torch.cat([x.T for x in all_hpaths], 1).flatten()

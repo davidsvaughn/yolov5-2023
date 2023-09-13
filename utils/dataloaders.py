@@ -132,7 +132,7 @@ class SmartDistributedSampler(distributed.DistributedSampler):
                 idx += [idx[-1]] * padding_size
 
         # if self.dataset.rect:
-        if not self.shuffle: print(f'\nRANK:{self.rank}-SDS-idx:{idx}\n')
+        # if not self.shuffle: print(f'\nRANK:{self.rank}-SDS-idx:{idx}\n')
 
         return iter(idx)
 
