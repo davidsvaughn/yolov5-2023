@@ -308,10 +308,14 @@ def run(
                 shapes.append(s)
             # print(f'\nSHAPES:{shapes}\n\n')
 
-            print(f'\nALL_HPATHS:{all_hpaths}\n\n')
+            print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
             # hpaths = torch.cat(all_hpaths, 0)[0]
             all_hpaths = [torch.squeeze(x, 0) for x in all_hpaths]
-            hpaths = np.array(list(map(torch.Tensor.cpu, list(itertools.chain.from_iterable(all_hpaths)))))
+            print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
+            all_hpaths = list(itertools.chain.from_iterable(all_hpaths))
+            print(f'\nALL_HPATHS 3:{all_hpaths}\n\n')
+
+            hpaths = np.array(list(map(torch.Tensor.cpu, all_hpaths)))
             print(f'\nHPATHS:{hpaths}\n\n')
 
             didx = dupidx(hpaths)
