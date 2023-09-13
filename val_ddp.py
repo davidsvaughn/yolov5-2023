@@ -277,7 +277,7 @@ def run(
         # if RANK in {-1, 0}: print('\nGATHER: preds...')
         all_preds = gather_tensor_list(preds, device)
 
-        if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{targets}\n\n')
+        # if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{targets}\n\n')
         # if RANK in {-1, 0}: print('\nGATHER: targets...')
         all_targets = gather_tensors(targets, device)
 
@@ -295,7 +295,7 @@ def run(
             preds = list(itertools.chain.from_iterable(all_preds))
             # if batch_i==3: print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
 
-            if batch_i==3: print(f'\nALL TARGETS (before):{all_targets}\n\n')
+            # if batch_i==3: print(f'\nALL TARGETS (before):{all_targets}\n\n')
             for j,targets in enumerate(all_targets):
                 targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
             # if batch_i==3: print(f'\nALL TARGETS (after):{all_targets}\n\n')
@@ -329,7 +329,7 @@ def run(
             # if batch_i==3: print(f'\nDIDX:{didx}\n\n')
             if len(didx>0):
                 didx = didx[1:] ## remove first index, for keeping 1 instance of repeated data
-                # print(f'\nDIDX:{didx}\n')
+                print(f'\nDIDX:{didx}\n')
 
         ###############################################################
 
