@@ -25,8 +25,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import hashlib
 
 import numpy as np
+import pandas as pd
 import torch
 from tqdm import tqdm
 import itertools
@@ -226,9 +228,18 @@ def run(
     s = ('%22s' + '%11s' * 6) % ('Class', 'Images', 'Instances', 'P', 'R', 'mAP50', 'mAP50-95')
     pbar = tqdm(dataloader, desc=s, bar_format=TQDM_BAR_FORMAT, disable=RANK > 0)  # progress bar
 
+    # hash paths into integers [use: https://pypi.org/project/cityhash/ ??? ]
+    def hash(s):
+        return int(hashlib.sha256(s.encode('utf-8')).hexdigest(), 16) % 10**16
+    # return indices of all duplicate values
+    def dupidx(x):
+        return np.where(pd.DataFrame(x).duplicated(keep=False))[0]
+
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
 
         print(f'RANK:{RANK}-batch{batch_i}:\n{paths}    ')
+        hpaths = torch.tensor([hash(p) for p in paths], device=device)
+        hpaths = torch.unsqueeze(hpaths, 0)
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -264,9 +275,10 @@ def run(
         
         # if RANK in {-1, 0}: print('\nGATHER: preds...')
         all_preds = gather_tensor_list(preds, device)
-
         # if RANK in {-1, 0}: print('\nGATHER: targets...')
         all_targets = gather_tensors(targets, device)
+
+        all_hpaths = gather_tensors(hpaths, device)
 
         ## shapes
         all_shapes = []
@@ -278,12 +290,12 @@ def run(
 
         if RANK in {-1, 0}:
             preds = list(itertools.chain.from_iterable(all_preds))
-            # print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
+            print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
 
             for j,targets in enumerate(all_targets):
                 targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
             targets = torch.cat(all_targets, 0)
-            # print(f'\nTARGETS (after):{targets}\n\n')
+            print(f'\nTARGETS (after):{targets}\n\n')
 
             all_shapes = list(itertools.chain.from_iterable(all_shapes))
             # print(f'\nALL_SHAPES:{all_shapes}\n')
@@ -294,6 +306,12 @@ def run(
                 s = [[int(s[0]), int(s[1])],[s[2:4],s[4:]]]
                 shapes.append(s)
             # print(f'\nSHAPES:{shapes}\n\n')
+
+            # hpaths = list(itertools.chain.from_iterable(all_hpaths))
+            hpaths = torch.cat(all_hpaths, 0)[0]
+            print(f'\nHPATHS:{hpaths}\n\n')
+            didx = dupidx(hpaths.cpu().numpy())
+            print(f'\nDIDX:{didx}\n\n')
 
         # continue
         ###############################################################
