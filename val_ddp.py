@@ -237,10 +237,10 @@ def run(
 
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
 
-        print(f'RANK:{RANK}-batch{batch_i}:\n{paths}    ')
+        if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{paths}\n\n')
         hpaths = torch.tensor([hash(p) for p in paths], device=device)
         hpaths = torch.unsqueeze(hpaths, 0)
-        print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}    ')
+        if batch_i==3: print(f'RANK:{RANK}-batch{batch_i}:\n{hpaths}\n\n')
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -291,12 +291,14 @@ def run(
 
         if RANK in {-1, 0}:
             preds = list(itertools.chain.from_iterable(all_preds))
-            print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
+            if batch_i==3: print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
 
+            if batch_i==3: print(f'\nALL TARGETS (before):{all_targets}\n\n')
             for j,targets in enumerate(all_targets):
                 targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
+            if batch_i==3: print(f'\nALL TARGETS (after):{all_targets}\n\n')
             targets = torch.cat(all_targets, 0)
-            print(f'\nTARGETS (after):{targets}\n\n')
+            if batch_i==3: print(f'\nTARGETS (after):{targets}\n\n')
 
             all_shapes = list(itertools.chain.from_iterable(all_shapes))
             # print(f'\nALL_SHAPES:{all_shapes}\n')
@@ -315,10 +317,10 @@ def run(
             all_hpaths = list(itertools.chain.from_iterable(all_hpaths))
             # print(f'\nALL_HPATHS 3:{all_hpaths}\n\n')
             hpaths = np.array(list(map(torch.Tensor.cpu, all_hpaths)))
-            print(f'\nHPATHS:{hpaths}\n\n')
+            if batch_i==3: print(f'\nHPATHS:{hpaths}\n\n')
 
             didx = dupidx(hpaths)
-            print(f'\nDIDX:{didx}\n\n')
+            if batch_i==3: print(f'\nDIDX:{didx}\n\n')
 
         # continue
         ###############################################################
