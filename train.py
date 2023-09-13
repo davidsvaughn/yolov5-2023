@@ -434,6 +434,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                               callbacks=callbacks,
                                               compute_loss=compute_loss,# False?
                                               )
+        
+        # if RANK in {-1, 0}:
+        #     log_vals = list(mloss) + list(results) + lr
+        #     print(log_vals)
 
         # EarlyStopping
         if RANK != -1:  # if DDP training

@@ -567,8 +567,10 @@ class LoadImagesAndLabels(Dataset):
         self.n = n
         self.indices = np.arange(n)
         if rank > -1:  # DDP indices (see: SmartDistributedSampler)
-            ### OLD ## self.indices = self.indices[np.random.RandomState(seed=seed).permutation(n) % WORLD_SIZE == RANK]
-            # randomize the partitioning of images across GPU processes (for mosaic)
+            # Here we randomize the partitioning of images across GPU processes (for mosaic)...
+            # note: this random partitioning is the same for all epochs (i.e. it is deterministic) and is separate
+            # from the per-epoch random shuffling that is done inside SmartDistributedSampler _iter_ function.
+            # also note: we use 'rect' as a proxy for 'validation' - i.e. no random partitioning for validation
             indices = self.indices if self.rect else np.random.RandomState(seed=seed).permutation(n)
             # force each rank (i.e. GPU process) to sample the same subset of data on every epoch
             self.indices = self.indices[indices % WORLD_SIZE == RANK]

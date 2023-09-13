@@ -210,7 +210,7 @@ def run(
     
     if compute_loss:
         loss = torch.zeros(3, device=device)
-        
+
     if RANK in {-1, 0}:
         seen = 0
         confusion_matrix = ConfusionMatrix(nc=nc)
@@ -227,6 +227,9 @@ def run(
     pbar = tqdm(dataloader, desc=s, bar_format=TQDM_BAR_FORMAT, disable=RANK > 0)  # progress bar
 
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
+
+        print(f'RANK:{RANK}-batch{batch_i}:\n{paths}    ')
+
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
             if cuda:
@@ -257,8 +260,7 @@ def run(
                                         max_det=max_det)
         
         ###############################################################
-        ## DDP stuff...
-        ## gather outputs from all DDP processes...
+        ## MULTI-GPU: gather outputs from all DDP processes...
         
         # if RANK in {-1, 0}: print('\nGATHER: preds...')
         all_preds = gather_tensor_list(preds, device)
@@ -347,7 +349,7 @@ def run(
     
     # return None,None,None
 
-    # Compute metrics
+    # Compute final metrics
     if RANK in {-1, 0}:
         stats = [torch.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
         if len(stats) and stats[0].any():
