@@ -291,12 +291,12 @@ def run(
 
         if RANK in {-1, 0}:
             preds = list(itertools.chain.from_iterable(all_preds))
-            if batch_i==3: print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
+            # if batch_i==3: print('ALL_PREDS   '); [print(f'{p.shape}') for p in preds]
 
-            if batch_i==3: print(f'\nALL TARGETS (before):{all_targets}\n\n')
+            # if batch_i==3: print(f'\nALL TARGETS (before):{all_targets}\n\n')
             for j,targets in enumerate(all_targets):
                 targets[:,0] = targets[:,0] * WORLD_SIZE + j ## restore global indices
-            if batch_i==3: print(f'\nALL TARGETS (after):{all_targets}\n\n')
+            # if batch_i==3: print(f'\nALL TARGETS (after):{all_targets}\n\n')
             targets = torch.cat(all_targets, 0)
             if batch_i==3: print(f'\nTARGETS (after):{targets}\n\n')
 
@@ -310,9 +310,9 @@ def run(
                 shapes.append(s)
             # print(f'\nSHAPES:{shapes}\n\n')
 
-            if batch_i==3: print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
+            # if batch_i==3: print(f'\nALL_HPATHS 1:{all_hpaths}\n\n')
             all_hpaths = torch.cat([x.T for x in all_hpaths], 1).flatten()
-            if batch_i==3: print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
+            # if batch_i==3: print(f'\nALL_HPATHS 2:{all_hpaths}\n\n')
             
 
             # hpaths = torch.cat(all_hpaths, 0)[0]
@@ -332,6 +332,11 @@ def run(
         if RANK in {-1, 0}:
             # Metrics
             for si, pred in enumerate(preds):
+
+                if si in didx:
+                    print(f'\nPREDS-{si}:{pred}\n\n')
+                    print(f'\nTARGETS-{si}:{targets[targets[:, 0] == si, :]}\n\n')
+
                 labels = targets[targets[:, 0] == si, 1:]
                 nl, npr = labels.shape[0], pred.shape[0]  # number of labels, predictions
                 # path = Path(paths[si])
