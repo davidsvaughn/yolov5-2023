@@ -337,6 +337,9 @@ def run(
                     print(f'\nPREDS-{si}:{pred}\n\n')
                     print(f'\nTARGETS-{si}:{targets[targets[:, 0] == si, :]}\n\n')
 
+                    if si==len(preds)-1 and len(pred)>0:
+                        sys.exit()
+
                 labels = targets[targets[:, 0] == si, 1:]
                 nl, npr = labels.shape[0], pred.shape[0]  # number of labels, predictions
                 # path = Path(paths[si])
