@@ -131,7 +131,8 @@ class SmartDistributedSampler(distributed.DistributedSampler):
             else: # just repeat the last element (for ddp validation)
                 idx += [idx[-1]] * padding_size
 
-        # if self.dataset.rect: print(f'SDS: RANK:{self.rank}--idx:{idx}    ')
+        # if self.dataset.rect:
+        if not self.shuffle: print(f'RANK:{self.rank}-SDS-idx:{idx}\n')
 
         return iter(idx)
 
