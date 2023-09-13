@@ -244,11 +244,11 @@ def run(
 
         paths = np.array(paths)
         dupids = dupidx(paths)
-        assert len(np.unique(paths[dupids]))<=1, f"more than 1 unique repeated path, got: {paths[dupids]}"
         if len(dupids)>0:
-            print(f'RANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
+            # print(f'\nRANK:{RANK}-batch:{batch_i}-dupids:{dupids}\n')
+            assert len(np.unique(paths[dupids]))==1, f"more than 1 unique repeated path, got: {paths[dupids]}"
+            dupids = dupids[1:] ## remove first index, for keeping 1 instance of repeated data
         dupids = torch.unsqueeze(torch.tensor(dupids, device=device), 1)
-        
 
         callbacks.run('on_val_batch_start')
         with dt[0] if RANK in {-1, 0} else nullcontext():
@@ -328,9 +328,9 @@ def run(
 
             for j,dupids in enumerate(all_dupids):
                 all_dupids[j] = dupids * WORLD_SIZE + j ## restore global indices
-            dupids = torch.squeeze(torch.cat(all_dupids, 0))
+            dupids = torch.squeeze(torch.cat(all_dupids, 0)).cpu().numpy().astype('int')
             if len(dupids)>0:
-                print(f'batch:{batch_i}-DUPIDS:{dupids}\n')
+                print(f'batch:{batch_i}-DUPIDS:{dupids}')
             
 
             # hpaths = torch.cat(all_hpaths, 0)[0]
