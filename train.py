@@ -370,15 +370,12 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         scheduler.step()
 
         if RANK in {-1, 0}:
-            # print RAM usage
-            # print_ram_usage()
-
-            # mAP
+        
             callbacks.run('on_train_epoch_end', epoch=epoch)
             ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
 
-            # ORIGINAL Validation (not DDP)
+            # ORIGINAL Validation (non DDP)
             # if not noval or final_epoch:  # Calculate mAP
             #     results, maps, _ = validate.run(data_dict,
             #                                     batch_size=val_batch_size,
@@ -393,24 +390,25 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             #                                     compute_loss=compute_loss)
                 
         # DDP Validation (Multi-GPU)
-        results, maps, _ = validate_ddp.run(data_dict,
-                                            batch_size=val_batch_size,
-                                            imgsz=imgsz,
-                                            half=amp,# False?
-                                            # model=de_parallel(model), #ema.ema,
-                                            model=ema.ema if ema else de_parallel(model),
-                                            single_cls=single_cls,
-                                            dataloader=val_loader_ddp,
-                                            save_dir=save_dir,
-                                            plots=False,
-                                            callbacks=callbacks,
-                                            compute_loss=compute_loss,# False?
-                                            epoch=epoch,
-                                            )
+        if not noval or final_epoch:  # Calculate mAP
+            results, maps, _ = validate_ddp.run(data_dict,
+                                                batch_size=val_batch_size,
+                                                imgsz=imgsz,
+                                                half=amp,# False?
+                                                # model=de_parallel(model), #ema.ema,
+                                                model=ema.ema if ema else de_parallel(model),
+                                                single_cls=single_cls,
+                                                dataloader=val_loader_ddp,
+                                                save_dir=save_dir,
+                                                plots=False,
+                                                callbacks=callbacks,
+                                                compute_loss=compute_loss,# False?
+                                                epoch=epoch,
+                                                )
         
         if RANK in {-1, 0}:
             print_ram_usage()
-            
+
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
             stop = stopper(epoch=epoch, fitness=fi)  # early stop check
@@ -440,25 +438,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     torch.save(ckpt, w / f'epoch{epoch}.pt')
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
-        
-        # # DDP Stuff
-        # _results, _maps, _ = validate_ddp.run(data_dict,
-        #                                       batch_size=val_batch_size,
-        #                                       imgsz=imgsz,
-        #                                       half=amp,# False?
-        #                                       # model=de_parallel(model), #ema.ema,
-        #                                       model=ema.ema if ema else de_parallel(model),
-        #                                       single_cls=single_cls,
-        #                                       dataloader=val_loader_ddp,
-        #                                       save_dir=save_dir,
-        #                                       plots=False,
-        #                                       callbacks=callbacks,
-        #                                       compute_loss=compute_loss,# False?
-        #                                       )
-        
-        # if RANK in {-1, 0}:
-        #     log_vals = list(mloss) + list(results) + lr
-        #     print(log_vals)
 
         # EarlyStopping
         if RANK != -1:  # if DDP training
